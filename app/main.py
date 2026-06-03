@@ -9,3 +9,9 @@ def root():
     return {
         "message": "TripFit AI Server"
     }
+
+@app.get("/recommend")
+def recommend():
+    return {
+        "result": "추천결과"
+    }
