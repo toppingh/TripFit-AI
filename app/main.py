@@ -1,7 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.routes.recommend import router
 app = FastAPI() # 서버 생성
+
+app.include_router(router)
 
 # URL
 urls = [
