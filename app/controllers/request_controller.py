@@ -5,7 +5,7 @@ from app.services.course_service import create_tripfit_course
 
 router = APIRouter()
 
-@router.post("/cousre", response_model=CourseResponse)
+@router.post("/course", response_model=CourseResponse)
 async def create_recommendation_course(payload: CourseRequest):
     try:
         course_result = await create_tripfit_course(
