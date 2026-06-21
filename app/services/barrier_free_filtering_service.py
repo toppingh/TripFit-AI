@@ -1,9 +1,14 @@
-from pyasn1_modules.rfc7773 import e_legnamnden
+import logging
 
 from app.services.req_api_service import req_area_list_api
 
+# debug 로그
+logger = logging.getLogger("tripfit.barrier_free_service")
 
 async def get_disability_list_and_filtered(city_code: str, state_code: str) -> dict:
+    # debug 로그
+    logger.info(f"[무장애] 1차 지역기반 APi 호출 - city: {city_code}, state: {state_code}")
+
     data = await req_area_list_api(
         "KorWithService2/areaBasedList2",
         {
@@ -11,6 +16,8 @@ async def get_disability_list_and_filtered(city_code: str, state_code: str) -> d
             "lDongSignguCd": state_code
         }
     )
+    # debug 로그
+    logger.info(f"[무장애] 1차 API 원본 데이터 수집 결과 - 총 {len(data) if data else 0}건")
 
     filtered = {"spots": [], "eats": [], "hotels": []}
 
@@ -26,6 +33,9 @@ async def get_disability_list_and_filtered(city_code: str, state_code: str) -> d
         # 32-숙박
         elif cnt_id == "32":
             filtered["hotels"].append(item)
+    # debug 로그
+    logger.info(f"[무장애]  1차 분류(필터링) 결과 - 관광지: {len(filtered['spots'])}건, 식당: {len(filtered['eats'])}건, 숙발: {len(filtered['hotels'])}건")
+
     return filtered
 
 # 호출한 api 응답 구조 중 필드 값이 None 이거나 "없음"일 경우를 방지하는 함수
@@ -48,8 +58,8 @@ def filtered_partner_type(detail: dict, type:str) -> dict:
 
         # 부/적합 판단 기준
         # 장애인 주차장, 경사로, 엘리베이터, 장애인 화장실이 없으면 부적합
-        if is_blank(parking) or is_blank(route) or is_blank(exit) or is_blank(elevator) or is_blank(restroom):
-            return {}
+        # if is_blank(parking) or is_blank(route) or is_blank(exit) or is_blank(elevator):
+        #     return {}
 
         return {
             "parking": parking, # 장애인 주차장
@@ -70,8 +80,8 @@ def filtered_partner_type(detail: dict, type:str) -> dict:
 
         # 부/적합 판단 기준
         # 수유실, 아기 의자가 없으면 부적합
-        if is_blank(lactation) or is_blank(babychair):
-            return {}
+        # if is_blank(lactation) or is_blank(babychair):
+        #     return {}
 
         return {
             "strolloer": stroller, # 유모차
@@ -88,8 +98,8 @@ def filtered_partner_type(detail: dict, type:str) -> dict:
 
         # 부/적합 판단 기준
         # 엘리베이터가 없으면 부적합
-        if is_blank(elevator):
-            return {}
+        # if is_blank(elevator):
+        #     return {}
 
         return {
             "route": route, # 접근로 (경사로)
@@ -102,15 +112,20 @@ def filtered_partner_type(detail: dict, type:str) -> dict:
 
 # 두 api 호출 후 결과를 비교해서 동반자 유형에 맞는 최종 후보 리스트 생성
 def final_barrier_free_list(all_places: list, detail_places: list, type: str) -> dict:
+    # debug 로그
+    logger.info(f"[무장애] {type} 유형 맞춤형 2차 필터링 함수 호출")
+
     final_filtered = {"spots": [], "eats": [], "hotels": []}
+    drop_cnt = 0 # 부적합 장소 건수
 
     for item, detail in zip(all_places, detail_places):
         # 필터링 함수 호출
         filtered_places = filtered_partner_type(item, type)
-        # print(filtered_places)
+        print(filtered_places)
 
         # filtered_places가 비어있으면 부적합으로 간주 -> 후보에서 제외
         if not filtered_places:
+            drop_cnt += 1
             continue
 
         # areaBasedList2 호출 결과를 detailWithTour2에 던진 후 필터링한 결과 결합
@@ -134,5 +149,7 @@ def final_barrier_free_list(all_places: list, detail_places: list, type: str) ->
         # 32-숙박
         elif cnt_id == "32":
             final_filtered["hotels"].append(item)
+    # debug 로그
+    logger.info(f"[무장애] 2차 분류(필터링) 결과 - 부적합: {drop_cnt}건 / 적합: 관광지: {len(final_filtered['spots'])}건, 식당: {len(final_filtered['eats'])}건, 숙소: {len(final_filtered['hotels'])}건")
 
     return final_filtered
