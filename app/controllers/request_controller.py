@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 
 from app.models.request_model import CourseResponse, CourseRequest
 from app.services.course_service import create_tripfit_course
-print("request_controller loaded")
+
 router = APIRouter()
 
 @router.post("/course", response_model=CourseResponse)

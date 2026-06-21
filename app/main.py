@@ -3,15 +3,15 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.controllers.request_controller import router as request_router
 
-app = FastAPI() # 서버 생성
-
+app = FastAPI(title="TripFit AI Server") # 서버 생성
 app.include_router(request_router)
 
 # URL
 urls = [
     "http://localhost:3000", # 프론트 로컬 개발 주소
     "https://tripfit-web.vercel.app/", # 프론트 배포 주소
-    "https://tripfit-backend-6que.onrender.com" # 백엔드 배포 주소
+    "https://tripfit-backend-6que.onrender.com", # 백엔드 배포 주소
+    "https://tripfit-ai.onrender.com/" # AI 배포 주소
 ]
 
 app.add_middleware(
@@ -25,6 +25,7 @@ app.add_middleware(
 @app.get("/")
 def root():
     return {
-        "message": "TripFit AI Server"
+        "status": "healty"
     }
+
 
