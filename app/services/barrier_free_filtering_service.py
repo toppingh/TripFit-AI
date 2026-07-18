@@ -122,7 +122,7 @@ def final_barrier_free_list(all_places, detail_places, type, start_time):
             "mapx": item.get("mapx"),
             "mapy": item.get("mapy"),
             "convenience_info": filtered_places, # 위에서 동반자 유형 별 참고할 필드 값 정리한 변수
-            "img": item.get("firstimage"),
+            "img": item.get("firstimage", ""),
             "contenttypeid": item.get("contenttypeid")
         }
 
