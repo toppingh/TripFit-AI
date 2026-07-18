@@ -28,7 +28,8 @@ async def get_pet_list_and_filtered(city_code, state_code) -> dict:
             "name": item.get("title"),
             "address": item.get("addr1"),
             "mapx": item.get("mapx"),
-            "mapy": item.get("mapy")
+            "mapy": item.get("mapy"),
+            "img": item.get("firstimage")
         }
 
         # 12-관광지, 14-문화시설, 38-쇼핑
@@ -40,6 +41,7 @@ async def get_pet_list_and_filtered(city_code, state_code) -> dict:
         # 32-숙박
         elif cnt_id == "32":
             filtered["hotels"].append(places)
+
     # debug 로그
     logger.info(f"[PET] 1차 분류(필터링) 결과 - 관광지: {len(filtered['spots'])}건, 식당: {len(filtered['eats'])}건, 숙박: {len(filtered['hotels'])}건")
 

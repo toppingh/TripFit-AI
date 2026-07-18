@@ -1,12 +1,13 @@
 import logging
+import time
 
 from app.services.req_api_service import req_area_list_api
 
 # debug 로그
 logger = logging.getLogger("tripfit.barrier_free_service")
 
-async def get_disability_list_and_filtered(city_code: str, state_code: str) -> dict:
-    # debug 로그
+
+async def get_disability_list_and_filtered(city_code, state_code):
     logger.info(f"[무장애] 1차 지역기반 APi 호출 - city: {city_code}, state: {state_code}")
 
     data = await req_area_list_api(
@@ -16,140 +17,141 @@ async def get_disability_list_and_filtered(city_code: str, state_code: str) -> d
             "lDongSignguCd": state_code
         }
     )
-    # debug 로그
     logger.info(f"[무장애] 1차 API 원본 데이터 수집 결과 - 총 {len(data) if data else 0}건")
 
     filtered = {"spots": [], "eats": [], "hotels": []}
+    if not data:
+        return filtered
 
     for item in data:
         cnt_id = item.get("contenttypeid")
 
-        # 12-관광지, 14-문화시설, 15-행사/축제/공연, 38-쇼핑
         if cnt_id in ["12", "14", "15", "38"]:
             filtered["spots"].append(item)
-        # 39-음식점
         elif cnt_id == "39":
             filtered["eats"].append(item)
-        # 32-숙박
         elif cnt_id == "32":
             filtered["hotels"].append(item)
-    # debug 로그
-    logger.info(f"[무장애]  1차 분류(필터링) 결과 - 관광지: {len(filtered['spots'])}건, 식당: {len(filtered['eats'])}건, 숙발: {len(filtered['hotels'])}건")
 
+    logger.info(
+        f"[무장애] 1차 분류 결과 - 관광지: {len(filtered['spots'])}건, 식당: {len(filtered['eats'])}건, 숙박: {len(filtered['hotels'])}건")
     return filtered
 
-# 호출한 api 응답 구조 중 필드 값이 None 이거나 "없음"일 경우를 방지하는 함수
-def is_blank(val):
-    return val is None or val == "" or val == "없음" in str(val)
 
-# 첫번째 api 호출(지역기반 정보 api) 후 응답 값 -> detailWithTour2 api 호출 후 상세 정보를 받아 동반자 유형별로 적합한 장소만 필터링
-def filtered_partner_type(detail: dict, type:str) -> dict:
+def extract_detail_item(detail_response):
+    if not detail_response:
+        return {}
+    try:
+        # API 응답 구조 -> response.body.items.item
+        response_obj = detail_response.get("response", {})
+        body_obj = response_obj.get("body", {})
+        items_obj = body_obj.get("items", {})
+        item_list = items_obj.get("item", [])
+
+        if item_list and isinstance(item_list, list):
+            return item_list[0]
+        elif isinstance(item_list, dict):
+            return item_list
+    except Exception:
+        pass
+    return detail_response
+
+
+def filtered_partner_type(detail_raw, type):
+    detail = extract_detail_item(detail_raw)
     if not detail:
         return {}
 
-    # 지체장애(휠체어 동반) 그룹 필드 필터링
+    # 값이 존재하는 필드만 append
+    res = {}
+
+    # 둥반자 유형 == 휠체어
     if type == "WHEELCHAIR":
-        parking = detail.get("parking") # 장애인 주차장
-        route = detail.get("route") # 접근로 (경사로)
-        wheelchair = detail.get("wheelchair") # 휠체어 대여
-        exit = detail.get("exit") # 출입통로 (경사로)
-        elevator = detail.get("elevator") # 엘리베이터
-        restroom = detail.get("restroom") # 장애인 화장실
+        if detail.get("parking"): res["parking"] = detail["parking"]
 
-        # 부/적합 판단 기준
-        # 장애인 주차장, 경사로, 엘리베이터, 장애인 화장실이 없으면 부적합
-        # if is_blank(parking) or is_blank(route) or is_blank(exit) or is_blank(elevator):
-        #     return {}
+        # 대소문자 변동성 방어 (publictransport / publicTransport)
+        pt = detail.get("publictransport") or detail.get("publicTransport")
+        if pt: res["publicTransport"] = pt
 
-        return {
-            "parking": parking, # 장애인 주차장
-            "publieTransport": detail.get("publiedTransport"), # 대중교통
-            "route": route, # 접근로 (경사로)
-            "wheelchair": wheelchair, # 휠체어 대여
-            "exit": exit, # 출입통로 (경사로)
-            "elevator": elevator, # 엘리베이터
-            "restroom": restroom, # 장애인 화장실
-            "etc": detail.get("handicapetc"), # 기타상세
-        }
+        # 휠체어 동반 시 참고할 필드 값 (route, wheelchair, exit, elevator, restroom, handicapetc)
+        if detail.get("route"): res["route"] = detail["route"] # 경사/접근로
+        if detail.get("wheelchair"): res["wheelchair"] = detail["wheelchair"] # 휠체어 대여
+        if detail.get("exit"): res["exit"] = detail["exit"] # 출입구
+        if detail.get("elevator"): res["elevator"] = detail["elevator"] # 엘리베이터 유무
+        if detail.get("restroom"): res["restroom"] = detail["restroom"] # 장애인 화장실 유무
+        if detail.get("handicapetc"): res["etc"] = detail["handicapetc"] # 기타상세
 
-    # 영유아 동반 그룹 필드 필터링
+    # 동반자 유형 == 영유아
     elif type == "BABY":
-        stroller = detail.get("stroller") # 유모차
-        lactation = detail.get("lactationroom") # 수유실
-        babychair = detail.get("babysparechair") # 유아의자
 
-        # 부/적합 판단 기준
-        # 수유실, 아기 의자가 없으면 부적합
-        # if is_blank(lactation) or is_blank(babychair):
-        #     return {}
+        # 영유아 동반 시 참고할 필드 값 (stroller, lactationroom, babysparechair, infantsfamilyetc)
+        if detail.get("stroller"): res["stroller"] = detail["stroller"] # 유모차 대여 유무
+        if detail.get("lactationroom"): res["lactation"] = detail["lactationroom"] # 수유실 유무
+        if detail.get("babysparechair"): res["babychair"] = detail["babysparechair"] # 아기의자 유무
+        if detail.get("infantsfamilyetc"): res["etc"] = detail["infantsfamilyetc"] # 기타상세
 
-        return {
-            "strolloer": stroller, # 유모차
-            "lactation": lactation, # 수유실
-            "babychair": babychair, # 유아의자
-            "etc": detail.get("infantsfamilyetc"), # 기타상세
-        }
-
-    # 고령자 동반 그룹 필드 필터링 (평지/접근로 여부를 기준으로 함)
+    # 동반자 유형 == 고령자
     elif type == "ELDERLY":
-        route = detail.get("route")
-        exit = detail.get("exit")
-        elevator = detail.get("elevator")
 
-        # 부/적합 판단 기준
-        # 엘리베이터가 없으면 부적합
-        # if is_blank(elevator):
-        #     return {}
+        # 고령자 동반 시 참고할 필드 값 (route, exit, elevator, handicapetc)
+        if detail.get("route"): res["route"] = detail["route"] # 경사/접근로
+        if detail.get("exit"): res["exit"] = detail["exit"] # 출입구
+        if detail.get("elevator"): res["elevator"] = detail["elevator"] # 엘리베이터 유무
+        if detail.get("handicapetc"): res["etc"] = detail["handicapetc"] # 기타상세
 
-        return {
-            "route": route, # 접근로 (경사로)
-            "exit": exit, # 출입통로 (경사로)
-            "elevator": elevator,
-            "etc": detail.get("handicapetc")
-        }
+    return res
 
-    return {}
 
-# 두 api 호출 후 결과를 비교해서 동반자 유형에 맞는 최종 후보 리스트 생성
-def final_barrier_free_list(all_places: list, detail_places: list, type: str) -> dict:
-    # debug 로그
-    logger.info(f"[무장애] {type} 유형 맞춤형 2차 필터링 함수 호출")
+# 무장애 여행 최종 목록
+def final_barrier_free_list(all_places, detail_places, type, start_time):
+    logger.info(f"[무장애] {type} 동반 맞춤형 코스 필터링 시작")
 
+    # 필터링 변수 (관광지, 식당, 숙소)
     final_filtered = {"spots": [], "eats": [], "hotels": []}
-    drop_cnt = 0 # 부적합 장소 건수
 
     for item, detail in zip(all_places, detail_places):
-        # 필터링 함수 호출
-        filtered_places = filtered_partner_type(item, type)
-        print(filtered_places)
+        filtered_places = filtered_partner_type(detail, type)
 
-        # filtered_places가 비어있으면 부적합으로 간주 -> 후보에서 제외
+        # 응답 데이터가 비어있는 경우 제외
         if not filtered_places:
-            drop_cnt += 1
             continue
 
-        # areaBasedList2 호출 결과를 detailWithTour2에 던진 후 필터링한 결과 결합
         place_data = {
             "name": item.get("title"),
             "address": item.get("addr1"),
             "mapx": item.get("mapx"),
             "mapy": item.get("mapy"),
-            "convenience_info": filtered_places
+            "convenience_info": filtered_places, # 위에서 동반자 유형 별 참고할 필드 값 정리한 변수
+            "img": item.get("firstimage"),
+            "contenttypeid": item.get("contenttypeid")
         }
 
-        # contenttypeid 기준 최종 목록에 장소 유형을 분류해 후보 생성
         cnt_id = item.get("contenttypeid")
 
-        # 12-관광지,, 14-문화시설, 15-행사/축제/공연, 38-쇼핑
-        if cnt_id in ["12", "14", "15", "38"]:
-            final_filtered["spots"].append(item)
-        # 39-음식점
-        elif cnt_id == "39":
-            final_filtered["eats"].append(item)
-        # 32-숙박
-        elif cnt_id == "32":
-            final_filtered["hotels"].append(item)
-    # debug 로그
-    logger.info(f"[무장애] 2차 분류(필터링) 결과 - 부적합: {drop_cnt}건 / 적합: 관광지: {len(final_filtered['spots'])}건, 식당: {len(final_filtered['eats'])}건, 숙소: {len(final_filtered['hotels'])}건")
+        if cnt_id in ["12", "14", "15", "38"]: # 12-관광지, 14-문화시설, 15-행사/축제/공연, 38-쇼핑
+            final_filtered["spots"].append(place_data)
+        elif cnt_id == "39": # 39-음식점
+            final_filtered["eats"].append(place_data)
+        elif cnt_id == "32": # 32-숙박
+            final_filtered["hotels"].append(place_data)
+
+    elapsed_time_str = "시간 측정 불가 -> start_time 누락"
+    if start_time:
+        elapsed_time = time.perf_counter() - start_time
+        # 최종 작업 소요 시간
+        elapsed_time_str = f"{elapsed_time:.2f}초"
+
+    # 디버그용
+    debug_payload = {
+        "CHECK_POINT": "[1단계] 공공 API 데이터 수집 및 무장애 필터링 완료",
+        "ELAPSED_TIME": elapsed_time_str,
+        "total_spots_count": len(final_filtered["spots"]),
+        "total_eats_count": len(final_filtered["eats"]),
+        "total_hotels_count": len(final_filtered["hotels"]),
+        "final_filtered_data": final_filtered
+    }
+
+    # gemini 호출 전 debug용 강제 에러 출력
+    # raise ValueError(json.dumps(debug_payload, ensure_ascii=False))
 
     return final_filtered
