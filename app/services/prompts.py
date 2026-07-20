@@ -1,5 +1,12 @@
 import json
 
+# 동반자 유형 맵핑
+partner_mapping = {
+    "PET": "반려동물",
+    "WHEELCHAIR": "휠체어",
+    "BABY": "영유아",
+    "ELDERLY": "고령자"
+}
 
 def tripfit_prompt(type, days, date_list, data):
     # 동반자 유형별 맞춤 설명 및 가이드 설명용 프롬프트
@@ -10,7 +17,10 @@ def tripfit_prompt(type, days, date_list, data):
         "PET": "너는 반려동물을 동반한 여행을 위한 플래너이다. 반려동물 출입이 가능하다고 확실히 검증된 장소 위주로 동선을 짜야한다."
     }
 
-    partner = partner_list.get(type, "이동 약자 맞춤형 일정을 자동으로 생성하여 추천해주는 여행 플래터, 트립핏입니다.")
+    partner = partner_list.get(type, "여행 동반자 맞춤형 일정을 자동 생성하여 추천해주는 플래너, 트립핏입니다.")
+
+    # 동반자 유형 한글로 변경
+    kor_type = partner_mapping.get(type)
 
     # 프롬프트 정의
     return f"""
@@ -27,7 +37,7 @@ def tripfit_prompt(type, days, date_list, data):
     [LOG] 관광지 목록에서 일정에 맞도록 장소별 필터링 중...
     ---
     {{
-    "title": "{type} 동반 {days}박 {days + 1}일 맞춤 여행",
+    "title": "{kor_type} 동반 {days}박 {days + 1}일 맞춤 여행",
     "days": [
         {{
             "day_number": 1,
