@@ -10,6 +10,7 @@ from google import genai
 from google.genai import types
 from starlette.responses import StreamingResponse
 
+from app.models.course_schema import FinalCourseResponse
 from app.services import pet_service, barrier_free_filtering_service, tour_service, prompts
 from app.services.congestion_service import get_congestion_rate
 
@@ -94,6 +95,7 @@ async def generate_tripfit_course(city_code, state_code, type, start_date, end_d
             contents=prompt,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
+                response_schema=FinalCourseResponse,
                 temperature=0.15
             )
         )
