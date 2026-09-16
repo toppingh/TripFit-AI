@@ -28,6 +28,12 @@ def root():
         "status": "healty"
     }
 
+@app.get("/check")
+def root_check():
+    return {
+        "status": "health-check"
+    }
+
 @app.head("/ping")
 def root_head():
     return {
