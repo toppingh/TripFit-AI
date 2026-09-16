@@ -75,10 +75,10 @@ async def generate_tripfit_course(city_code, state_code, type, start_date, end_d
     async def streaming_generator():
         # 클라이언트 연결 성공 후 추론 과정 출력
         logs = [
-            f"[LOG] 한국관광공사 제공 데이터 중 {len(final_list)}개의 장소 수집 완료\n",
-            f"[LOG] 수집한 장소에서 {kor_type} 동반 맞춤형 코스 분석 중\n",
-            f"[LOG] 이동 동선 최적화 진행 중\n",
-            f"[LOG] 최종 AI 추천 코스 생성 중\n"
+            f"한국관광공사 제공 데이터 중 {len(final_list)}개의 장소 수집 완료\n",
+            f"수집한 장소에서 {kor_type} 동반 맞춤형 코스 분석 중\n",
+            f"이동 동선 최적화 진행 중\n",
+            f"최종 AI 추천 코스 생성 중\n"
         ]
 
         for log in logs:
@@ -91,7 +91,8 @@ async def generate_tripfit_course(city_code, state_code, type, start_date, end_d
 
         # 스트림 응답 구조
         response = await client.aio.models.generate_content_stream(
-            model="gemini-3.1-flash-lite",
+            # model="gemini-3.1-flash-lite",
+            model="gemini-3.5-flash-lite",
             contents=prompt,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",

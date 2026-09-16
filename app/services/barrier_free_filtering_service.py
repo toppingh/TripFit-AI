@@ -1,21 +1,44 @@
 import logging
 import time
+import json
 
 from app.services.req_api_service import req_area_list_api
 
 # debug 로그
 logger = logging.getLogger("tripfit.barrier_free_service")
 
+# 디버그 출력용 함수
+def log_category_details(category_name, items, max: int = 10):
+    logger.info(f"[{category_name}] 총 {len(items)}건")
+
+    if not items:
+        logger.info(f"{category_name} 데이터가 존재하지 않습니다.")
+        return
+
+    for idx, i in enumerate(items[:max], 1):
+        name = i.get("name") or "이름 없음"
+        addr = i.get("address") or "주소 없음"
+        logger.info(f"{idx}. {name} | 주소 : {addr}")
+
+    if len(items) > max:
+        logger.info(f"... 외 {len(items) - max}개 항목은 생략")
 
 async def get_disability_list_and_filtered(city_code, state_code):
     logger.info(f"[무장애] 1차 지역기반 APi 호출 - city: {city_code}, state: {state_code}")
 
+    # 파라미터 설정
+    params = {
+        "lDongRegnCd": city_code
+    }
+
+    # 시군구 값 확인 후 파라미터 추가
+    if state_code and str(state_code).strip():
+        params["lDongSignguCd"] = state_code
+
+    # params 전달
     data = await req_area_list_api(
         "KorWithService2/areaBasedList2",
-        {
-            "lDongRegnCd": city_code,
-            "lDongSignguCd": state_code
-        }
+        params
     )
     logger.info(f"[무장애] 1차 API 원본 데이터 수집 결과 - 총 {len(data) if data else 0}건")
 
@@ -33,8 +56,11 @@ async def get_disability_list_and_filtered(city_code, state_code):
         elif cnt_id == "32":
             filtered["hotels"].append(item)
 
-    logger.info(
-        f"[무장애] 1차 분류 결과 - 관광지: {len(filtered['spots'])}건, 식당: {len(filtered['eats'])}건, 숙박: {len(filtered['hotels'])}건")
+    logger.info(f"[무장애] 1차 분류 결과 - 관광지: {len(filtered['spots'])}건, 식당: {len(filtered['eats'])}건, 숙박: {len(filtered['hotels'])}건")
+    log_category_details("관광지", filtered["spots"])
+    log_category_details("식당", filtered["eats"])
+    log_category_details("숙박", filtered["hotels"])
+
     return filtered
 
 
@@ -141,7 +167,8 @@ def final_barrier_free_list(all_places, detail_places, type, start_time):
         # 최종 작업 소요 시간
         elapsed_time_str = f"{elapsed_time:.2f}초"
 
-    # 디버그용
+
+    # 테스트 디버그용
     debug_payload = {
         "CHECK_POINT": "[1단계] 공공 API 데이터 수집 및 무장애 필터링 완료",
         "ELAPSED_TIME": elapsed_time_str,
