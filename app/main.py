@@ -22,10 +22,16 @@ app.add_middleware(
     allow_headers=["*"], # 모든 헤더 허용
 )
 
-@app.head("/")
+@app.get("/")
 def root():
     return {
         "status": "healty"
+    }
+
+@app.head("/ping")
+def root_head():
+    return {
+        "status": "ping 요청"
     }
 
 
