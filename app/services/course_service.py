@@ -130,9 +130,11 @@ async def generate_tripfit_course(city_code, state_code, type, start_date, end_d
         try:
             match = re.search(r"(\{.*})", full_json_text, re.DOTALL)
             clean_json_text = match.group(1) if match else full_json_text.strip()
+            print(f"\n[json text] ", clean_json_text)
 
             # 최종 코스 결과
             course_result = json.loads(clean_json_text)
+            print(f"\n[최종 코스 결과] ", course_result)
 
             # 혼잡도 예측 작업 시작 시간
             start_congestion_time = time.perf_counter()
