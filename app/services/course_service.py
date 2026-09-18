@@ -125,7 +125,8 @@ async def generate_tripfit_course(city_code, state_code, type, start_date, end_d
 
         print(f"\n[2단계 완료] Gemini 추론 총 소요 시간: {total_gemini_time:.2f}초")
 
-        yield f"최종 추천 코스에서 관광지별 혼잡도 예측 중\n"
+        # 혼잡도 예측 시작
+        yield f"event: progress\ndata: {json.dumps({'message': '관광지 혼잡도 예측 중'}, ensure_ascii=False)}\n\n"
 
         try:
             match = re.search(r"(\{.*})", full_json_text, re.DOTALL)
@@ -181,10 +182,11 @@ async def generate_tripfit_course(city_code, state_code, type, start_date, end_d
             print(f"\n\n[AI 서버 작업 완료] 최종 AI 작업 시간: {total_time:.2f}초")
 
             # 최종 JSON 데이터에 구분선 추가
-            yield "---\n"
+            yield f"event: done\n"
+            yield f"data: {json.dumps(course_result, ensure_ascii=False)}\n\n"
 
-            # JSON push
-            yield json.dumps(course_result, ensure_ascii=False, indent=4)
+            # # JSON push
+            # yield json.dumps(course_result, ensure_ascii=False, indent=4)
 
         except Exception as e:
             logger.error(f"\n 최종 결과 값 가공 중 에러: {e}")
@@ -193,8 +195,6 @@ async def generate_tripfit_course(city_code, state_code, type, start_date, end_d
             # yield full_json_text
 
             f"event: progress\ndata: {json.dumps({'message': '최종 추천 코스에서 관광지별 혼잡도 예측 중'}, ensure_ascii=False)}\n\n"
-            yield "event: done\n"
-            yield f"data: {json.dumps(course_result, ensure_ascii=False)}\n\n"
 
 
     # 클라이언트와 SSE 커넥션
