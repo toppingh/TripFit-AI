@@ -82,7 +82,8 @@ async def generate_tripfit_course(city_code, state_code, type, start_date, end_d
         ]
 
         for log in logs:
-            yield log
+            yield f"event: progress\ndata: {json.dumps({'message': log}, ensure_ascii=False)}\n\n"
+            # yield log
             await asyncio.sleep(1.5)
 
         # gemini 호출 시간
@@ -113,7 +114,8 @@ async def generate_tripfit_course(city_code, state_code, type, start_date, end_d
 
             # AI 추론 장시간 소요될 경우 세션 끊김 방지 로그
             if current_time - last_print_time > 2.0:
-                yield "[LOG] AI가 실시간 코스 세부 조율 중\n"
+                # yield "AI가 실시간 코스 세부 조율 중\n"
+                f"event: progress\ndata: {json.dumps({'message': 'AI가 실시간 코스 세부 조율 중'}, ensure_ascii=False)}\n\n"
                 last_print_time = current_time
 
         # gemini 작업 종료 시간
@@ -123,7 +125,7 @@ async def generate_tripfit_course(city_code, state_code, type, start_date, end_d
 
         print(f"\n[2단계 완료] Gemini 추론 총 소요 시간: {total_gemini_time:.2f}초")
 
-        yield f"[LOG] 최종 추천 코스에서 관광지별 혼잡도 예측 중\n"
+        yield f"최종 추천 코스에서 관광지별 혼잡도 예측 중\n"
 
         try:
             match = re.search(r"(\{.*})", full_json_text, re.DOTALL)
@@ -184,9 +186,14 @@ async def generate_tripfit_course(city_code, state_code, type, start_date, end_d
 
         except Exception as e:
             logger.error(f"\n 최종 결과 값 가공 중 에러: {e}")
-            yield "[LOG] 혼잡도 예측 작업 중 에러가 발생해 AI 코스만 반환\n"
-            yield "---\n"
-            yield full_json_text
+            # yield "혼잡도 예측 작업 중 에러가 발생해 AI 코스만 반환\n"
+            # yield "---\n"
+            # yield full_json_text
+
+            f"event: progress\ndata: {json.dumps({'message': '최종 추천 코스에서 관광지별 혼잡도 예측 중'}, ensure_ascii=False)}\n\n"
+            yield "event: done\n"
+            yield f"data: {json.dumps(course_result, ensure_ascii=False)}\n\n"
+
 
     # 클라이언트와 SSE 커넥션
     return StreamingResponse(
